@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>웹캠 그림 인식기</title>
+</head>
+<body>
+  <h1>📷 웹캠 그림 인식기</h1>
+
+  <!-- 주제 선택 -->
+  <label>주제를 선택하세요:</label>
+  <select id="labelSelect">
+    <option value="apple">🍎 사과</option>
+    <option value="computer">💻 컴퓨터</option>
+  </select>
+
+   <!-- 실시간 웹캠 영상 -->
+  <br><br>
+  <video id="video" autoplay playsinline width="300" height="300"></video>
+  <canvas id="canvas" width="300" height="300" style="display:none;"></canvas>
+
+  <br><br>
+  <button onclick="capture()">분석 시작</button>
+  <p id="output"></p>
+
+  <!-- JavaScript -->
+  <script>
+    const video = document.getElementById('video');
+    const canvas = document.getElementById('canvas');
+    const ctx = canvas.getContext('2d');
+    const output = document.getElementById('output');
+    const labelSelect = document.getElementById('labelSelect');
+
+    // 웹캠 연결
+    navigator.mediaDevices.getUserMedia({ video: true })
+      .then(stream => {
+        video.srcObject = stream;
+      })
+      .catch(err => {
+        output.innerText = "🚫 웹캠 접근 실패: " + err.message;
+      });
+
+    // 캡처 + 서버로 이미지 + 주제(label) 전송
+    function capture() {
+      output.innerHTML = "⏳ 분석 중...";
+      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+      const dataUrl = canvas.toDataURL('image/png');
+      const label = labelSelect.value;
+
+      fetch('/analyze', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ image: dataUrl, label: label })
+      })
+      .then(res => res.json())
+      .then(data => {
+        if (data.done) {
+          output.innerHTML = `<span style="color:${data.success ? 'green' : 'red'}">${data.result}</span>`;
+        } else {
+          output.innerHTML = `<span style="color:orange">${data.result} (남은 기회: ${data.remaining})</span>`;
+        }
+      })
+      .catch(err => {
+        output.innerHTML = "❌ 서버 오류: " + err;
+      });
+    }
+  </script>
+</body>
+</html>
